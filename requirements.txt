@@ -1,0 +1,5 @@
+python-decouple
+alpaca-backtrader-api
+alpaca-trade-api
+numpy
+pandas
