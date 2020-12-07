@@ -1,16 +1,21 @@
+import os
+from decouple import config
 import alpaca_backtrader_api
 import sys
 import numpy as np
 import backtrader as bt
 from datetime import datetime
 
-# import strategie(s)
+# import strategy/strategies
 from replicate_vix_fix_pinescript_strategy import vix_fix_stoch_rsi_strategy
 
 
 # set alpaca creds
-ALPACA_API_KEY = ''
-ALPACA_SECRET_KEY = ''
+ALPACA_API_KEY = config("ALPACA_API_KEY")
+ALPACA_SECRET_KEY = config("ALPACA_SECRET_KEY")
+
+# ALPACA_API_KEY = ''
+# ALPACA_SECRET_KEY = ''
 ALPACA_PAPER = True
 
 store = alpaca_backtrader_api.AlpacaStore(
