@@ -13,12 +13,12 @@ import backtrader as bt, datetime
 class vix_fix_stoch_rsi_strategy(bt.Strategy):
 
     params = dict(
-        period=1,
+        period=3,
         smoothK = 3, # title="smoothing of Stochastic %K ")
         smoothD = 3, # title="moving average of Stochastic %K")
 
         # stochastic slow inputs
-        StochLength=14, # lookback length of Stochastic")
+        StochLength=-14, # lookback length of Stochastic")
         StochOverBought=80, #Stochastic overbought condition")
         StochOverSold = 20, # Stochastic oversold condition")
         smoothing_stochastic = 3, #smoothing of Stochastic %K ")
@@ -32,8 +32,10 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         ph = 0.85, #Highest Percentile - 0.90=90%, 0.95=95%, 0.99=99%
         ltLB = -40, # minval=25, maxval=99, title="Long-Term Look Back Current Bar Has To Close Below This Value OR Medium Term--Default=40")
         mtLB = -14, # minval=10, maxval=20, title="Medium-Term Look Back Current Bar Has To Close Below This Value OR Long Term--Default=14")
-        str = -3, # minval=1, maxval=9, title="Entry Price Action Strength--Close > X Bars Back---Default=3")
+        epastr = 3, # minval=1, maxval=9, title="Entry Price Action Strength--Close > X Bars Back---Default=3")
     )
+
+    
 
 
     def log(self, txt, dt=None):
@@ -42,6 +44,8 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         print('%s, %s' % (dt.isoformat(), txt))
 
     def __init__(self):
+
+        print(self.datas[0].close)
 
         stochastic_data = bt.indicators.StochasticSlow(self.datas[0], period=self.p.StochLength)
         k = bt.indicators.SMA(stochastic_data, period=self.p.smoothK)
@@ -61,7 +65,7 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
 
         rangeHigh  = bt.indicators.Highest(wvf, period=self.p.lb) * self.p.ph
 
-        upRange_cond_1 = self.datas[0].low > self.datas[-1].low 
+        upRange_cond_1 = self.datas[0].low > self.datas[0].low.get(ago=-1) 
         upRange_cond_2 = self.datas[0].close > self.datas[-1].high
         upRange = bt.And(upRange_cond_1, upRange_cond_2)
 
@@ -76,11 +80,14 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         filtered_Aggr = bt.And(filtered_Aggr_cond_1, filtered_Aggr_cond_2)
 
         alert3_cond1 = upRange
-        alert3_cond2 = self.datas[0].close > self.datas[str].close
+        # custom_condition = abs(self.p.epastr) > len(self.datas) -1
+        # custom_condition = abs(self.p.epastr) > len(self.datas) - 1
+
+        alert3_cond2 = self.datas[0].close > self.datas[0].close.get(ago=-3)
         alert3_cond4 = bt.Or(  self.datas[0].close < self.datas[self.p.ltLB].close, self.datas[0].close < self.datas[self.p.mtLB].close  )
         alert3 = bt.And(  alert3_cond1, alert3_cond2, alert3_cond4, filtered  )
 
-        alert4 = upRange_Aggr and self.datas[0].close > self.datas[self.p.str].close and (self.datas[0].close < self.datas[self.p.ltLB].close or self.datas[0].close < self.datas[self.p.mtLB].close) and filtered_Aggr
+        alert4 = upRange_Aggr and self.datas[0].close > self.datas[self.p.epastr].close and (self.datas[0].close < self.datas[self.p.ltLB].close or self.datas[0].close < self.datas[self.p.mtLB].close) and filtered_Aggr
 
 
         isOverBought = (bt.indicators.crossover(k,d) and calculation_smoothing_stochastic > self.p.StochOverBought)

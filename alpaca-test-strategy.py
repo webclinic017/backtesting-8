@@ -60,5 +60,7 @@ if __name__ == '__main__':
     # Set our desired cash start
     cerebro.broker.setcash(startcash)
 
+    print(data0)
+
     # Run over everything
     strats = cerebro.run(maxcpus=1)
