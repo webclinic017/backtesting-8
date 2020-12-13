@@ -1,3 +1,4 @@
 # env variables
 .env
 __pycache__
+*.insyncdl

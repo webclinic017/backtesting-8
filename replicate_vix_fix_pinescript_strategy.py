@@ -13,14 +13,18 @@ import backtrader as bt, datetime
 class vix_fix_stoch_rsi_strategy(bt.Strategy):
 
     params = dict(
-        # period=3,
-        smoothK = 3, # title="smoothing of Stochastic %K ")
-        smoothD = 3, # title="moving average of Stochastic %K")
-
         # stochastic slow inputs
         StochLength = 14, # lookback length of Stochastic")
         StochOverBought = 80, #Stochastic overbought condition")
         StochOverSold = 20, # Stochastic oversold condition")
+
+        # period=3,
+        # K, D inputs
+        smoothK = 3, # title="smoothing of Stochastic %K ")
+        smoothD = 3, # title="moving average of Stochastic %K")
+
+
+
         smoothing_stochastic = 3, #smoothing of Stochastic %K ")
 
 
@@ -35,9 +39,6 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         epastr = -3, # minval=1, maxval=9, title="Entry Price Action Strength--Close > X Bars Back---Default=3")
     )
 
-    
-
-
     def log(self, txt, dt=None):
         ''' Logging function for this strategy'''
         dt = dt or self.datas[0].datetime.date(0)
@@ -45,55 +46,55 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
 
     def __init__(self):
 
+        print('Todays close:')
         print(self.datas[0].close)
 
+        # < Stochastic slow formulas
         stochastic_data = bt.indicators.StochasticSlow(self.datas[0], period=self.p.StochLength)
         k = bt.indicators.SMA(stochastic_data, period=self.p.smoothK)
         d = bt.indicators.SMA(k, period=self.p.smoothD)
-
-        # might be able to remove this indicator - not even sure if necessary. not sure why self.p.period is being used or what it translates to in the pinescript version
-        calculation_stoch = bt.indicators.StochasticSlow(self.datas[0], period=self.p.period)
-        # end
-        calculation_smoothing_stochastic = bt.indicators.SMA(calculation_stoch, period=self.p.smoothing_stochastic)
-
-        highest_close_pd_period = bt.indicators.Highest(self.datas[0].close, period=self.p.pd)
-        wvf = (  (highest_close_pd_period - self.datas[0].low  )  / highest_close_pd_period  )  * 100
-
+        # > end stochastic slow formulas
+        
+        
+        # < Williams Vix Fix Formula
+        # highest_close_pd_period = bt.indicators.Highest(self.datas[0].close, period=self.p.pd) ## re-written o nthe next line. this line no longer necessary - cj 12-12-20
+        wvf = (  ( bt.indicators.Highest(self.datas[0].close, period=self.p.pd ) - self.datas[0].low )  / ( bt.indicators.Highest(self.datas[0].close, period=self.p.pd) ) )  * 100
         sDev = self.p.mult * bt.indicators.StandardDeviation(wvf, period=self.p.bbl)
-
         midLine = bt.indicators.SMA(wvf, period=self.p.bbl)
-
         upperBand = midLine + sDev
+        rangeHigh  = ( bt.indicators.Highest(wvf, period=self.p.lb) ) * self.p.ph
+        # > End Williams Vix Fix Formula
 
-        rangeHigh  = bt.indicators.Highest(wvf, period=self.p.lb) * self.p.ph
 
+
+        # < Filtered Bar Criteria
         upRange_cond_1 = self.datas[0].low > self.datas[0].low.get(ago=-1) 
         upRange_cond_2 = self.datas[0].close > self.datas[0].high.get(ago=-1)
         upRange = bt.And(upRange_cond_1, upRange_cond_2)
+        upRange_Aggr = bt.And(self.datas[0].close > self.datas[0].close.get(ago=-1), self.datas[0].close > self.datas[0].open.get(ago=-1))
 
-        upRange_Aggr = bt.And(self.datas[0].close > self.datas[0].close.get(ago=-1), self.datas[0].close > self.datas[0].open)
-
-        # this looks wrong - might need "ago=-1"
-        filtered_cond_1 = bt.Or(wvf(-1) >= upperBand(-1), wvf(-1) >= rangeHigh(-1))
-        #end
-        filtered_cond_2 = bt.And(wvf < upperBand, wvf < rangeHigh)
+        # filtered condition
+        filtered_cond_1 = bt.Or(wvf.get(ago=-1) >= upperBand.get(ago=-1), wvf.get(ago=-1) >= rangeHigh.get(ago=-1))
+        filtered_cond_2 = bt.And(wvf < upperBand, wvf < rangeHigh)        
         filtered = bt.And( filtered_cond_1, filtered_cond_2  )
 
-        # this looks wrong
-        filtered_Aggr_cond_1 = bt.Or(wvf(-1) >= upperBand(-1), wvf(-1) >= rangeHigh(-1))
-        # end
+        # filtered aggressive condition
+        filtered_Aggr_cond_1 = bt.Or(wvf.get(ago=-1) >= upperBand.get(ago=-1), wvf.get(ago=-1) >= rangeHigh.get(ago=-1))
         filtered_Aggr_cond_2 = bt.And(1 - wvf < upperBand, wvf < rangeHigh)
         filtered_Aggr = bt.And(filtered_Aggr_cond_1, filtered_Aggr_cond_2)
-
-        alert3_cond1 = upRange
-        alert3_cond2 = self.datas[0].close > self.datas[0].close.get(ago=self.p.epastr)
-        alert3_cond4 = bt.Or(  self.datas[0].close < self.datas[self.p.ltLB].close, self.datas[0].close < self.datas[self.p.mtLB].close  )
-        alert3 = bt.And(  alert3_cond1, alert3_cond2, alert3_cond4, filtered  )
-
-        alert4 = upRange_Aggr and self.datas[0].close > self.datas[self.p.epastr].close and (self.datas[0].close < self.datas[self.p.ltLB].close or self.datas[0].close < self.datas[self.p.mtLB].close) and filtered_Aggr
+        # > End Filtered Bar Criteria
 
 
-        isOverBought = (bt.indicators.crossover(k,d) and calculation_smoothing_stochastic > self.p.StochOverBought)
+        # < Alerts Criteria
+        # everything to this point verified translated accurately from pinescript - cj 12-12-20
+        alert3_cond1 = self.datas[0].close > self.datas[0].close.get(ago=self.p.epastr)
+        alert3_cond2 = bt.Or(  self.datas[0].close < self.datas[0].close.get(ago=self.p.ltLB), self.datas[0].close < self.datas[0].close(ago=self.p.mtLB)  )
+        self.alert3 = bt.And(  upRange, alert3_cond1, alert3_cond2, filtered  )
+
+        alert4_cond1 = bt.Or(  self.datas[0].close < self.datas[0].close.get(ago=self.p.ltLB), self.datas[0].close < self.datas[0].close.get(ago=self.p.mtLB)  )
+        self.alert4 = bt.And(  upRange_Aggr, self.datas[0].close > self.datas[0].close(ago=self.p.epastr), alert4_cond1, filtered_Aggr  )
+
+        isOverBought = bt.And(bt.indicators.CrossOver(k,d), k > self.p.StochOverBought)
 
         filteredAlert = alert3
 
@@ -107,6 +108,8 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         
         if isOverBought:
             self.closePosition = True
+
+        # > End Alerts Criteria
 
         # To keep track of pending orders
         self.order = None
