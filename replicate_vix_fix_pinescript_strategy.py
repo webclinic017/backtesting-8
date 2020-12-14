@@ -94,20 +94,20 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         alert4_cond1 = bt.Or(  self.datas[0].close < self.datas[0].close.get(ago=self.p.ltLB), self.datas[0].close < self.datas[0].close.get(ago=self.p.mtLB)  )
         self.alert4 = bt.And(  upRange_Aggr, self.datas[0].close > self.datas[0].close(ago=self.p.epastr), alert4_cond1, filtered_Aggr  )
 
-        isOverBought = bt.And(bt.indicators.CrossOver(k,d), k > self.p.StochOverBought)
+        self.isOverBought = bt.And(bt.indicators.CrossOver(k,d), k > self.p.StochOverBought)
 
-        filteredAlert = alert3
+        # filteredAlert = alert3
 
-        aggressiveAlert = alert4
+        # aggressiveAlert = alert4
 
-        if filteredAlert:
-            self.regularBuy = True
+        # if filteredAlert:
+        #     self.regularBuy = True
 
-        if aggressiveAlert:
-            self.aggressiveBuy = True
+        # if aggressiveAlert:
+        #     self.aggressiveBuy = True
         
-        if isOverBought:
-            self.closePosition = True
+        # if isOverBought:
+        #     self.closePosition = True
 
         # > End Alerts Criteria
 
@@ -146,6 +146,17 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         #    print('original entry: ', self.bar_executed) 
         print('self: ',len(self))
         #print('order: ',self.order)
+
+
+        if self.alert3:
+             self.regularBuy = True
+
+        if self.alert4:
+             self.aggressiveBuy = True
+        
+        if self.isOverBought:
+             self.closePosition = True
+
         if self.position: 
             print('position entry size: ',self.position.size)
             print('position entry price: ',self.position.price)
