@@ -1,9 +1,9 @@
 # replicate the VIX FIX strategy used in pine script
 # originally adapted from source: https://www.tradingview.com/script/TDxSLJRA-Vix-FIX-StochRSI-Strategy/
 
-# Import the backtrader platform
+# Import the backtrader platform # import datetime
 import backtrader as bt, datetime
-# import datetime
+
 
 # not confident in the following equations
 # wvf
@@ -46,11 +46,8 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
 
     def __init__(self):
 
-        print('Todays close:')
-        print(self.datas[0].close)
-
         # < Stochastic slow formulas
-        stochastic_data = bt.indicators.StochasticSlow(self.datas[0], period=self.p.StochLength)
+        stochastic_data = bt.indicators.StochasticSlow(self.data, period=self.p.StochLength)
         k = bt.indicators.SMA(stochastic_data, period=self.p.smoothK)
         d = bt.indicators.SMA(k, period=self.p.smoothD)
         # > end stochastic slow formulas
@@ -58,7 +55,7 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         
         # < Williams Vix Fix Formula
         # highest_close_pd_period = bt.indicators.Highest(self.datas[0].close, period=self.p.pd) ## re-written o nthe next line. this line no longer necessary - cj 12-12-20
-        wvf = (  ( bt.indicators.Highest(self.datas[0].close, period=self.p.pd ) - self.datas[0].low )  / ( bt.indicators.Highest(self.datas[0].close, period=self.p.pd) ) )  * 100
+        wvf = (  ( bt.indicators.Highest(self.data.close(0), period=self.p.pd ) - self.data.low(0) )  / ( bt.indicators.Highest(self.data.close(0), period=self.p.pd) ) )  * 100
         sDev = self.p.mult * bt.indicators.StandardDeviation(wvf, period=self.p.bbl)
         midLine = bt.indicators.SMA(wvf, period=self.p.bbl)
         upperBand = midLine + sDev
@@ -68,18 +65,18 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
 
 
         # < Filtered Bar Criteria
-        upRange_cond_1 = self.datas[0].low > self.datas[0].low.get(ago=-1) 
-        upRange_cond_2 = self.datas[0].close > self.datas[0].high.get(ago=-1)
+        upRange_cond_1 = self.data.low(0) > self.data.low(-1) 
+        upRange_cond_2 = self.data.close(0) > self.data.high(-1)
         upRange = bt.And(upRange_cond_1, upRange_cond_2)
-        upRange_Aggr = bt.And(self.datas[0].close > self.datas[0].close.get(ago=-1), self.datas[0].close > self.datas[0].open.get(ago=-1))
+        upRange_Aggr = bt.And(self.data.close(0) > self.data.close(-1), self.data.close(0) > self.data.open(-1))
 
         # filtered condition
-        filtered_cond_1 = bt.Or(wvf.get(ago=-1) >= upperBand.get(ago=-1), wvf.get(ago=-1) >= rangeHigh.get(ago=-1))
+        filtered_cond_1 = bt.Or(wvf(-1) >= upperBand(-1), wvf(-1) >= rangeHigh(-1))
         filtered_cond_2 = bt.And(wvf < upperBand, wvf < rangeHigh)        
         filtered = bt.And( filtered_cond_1, filtered_cond_2  )
 
         # filtered aggressive condition
-        filtered_Aggr_cond_1 = bt.Or(wvf.get(ago=-1) >= upperBand.get(ago=-1), wvf.get(ago=-1) >= rangeHigh.get(ago=-1))
+        filtered_Aggr_cond_1 = bt.Or(wvf(-1) >= upperBand(-1), wvf(-1) >= rangeHigh(-1))
         filtered_Aggr_cond_2 = bt.And(1 - wvf < upperBand, wvf < rangeHigh)
         filtered_Aggr = bt.And(filtered_Aggr_cond_1, filtered_Aggr_cond_2)
         # > End Filtered Bar Criteria
@@ -87,13 +84,19 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
 
         # < Alerts Criteria
         # everything to this point verified translated accurately from pinescript - cj 12-12-20
-        alert3_cond1 = self.datas[0].close > self.datas[0].close.get(ago=self.p.epastr)
-        alert3_cond2 = bt.Or(  self.datas[0].close < self.datas[0].close.get(ago=self.p.ltLB), self.datas[0].close < self.datas[0].close(ago=self.p.mtLB)  )
+        alert3_cond1 = self.data.close(0) > self.data.close(self.p.epastr)
+        alert3_cond2 = bt.Or(  self.data.close(0) < self.data.close(self.p.ltLB), self.data.close(0) < self.data.close(self.p.mtLB)  )
+        # testing idea from backtrader forums
+        # self.alert3 = bt.LineNum(float('nan'))
         self.alert3 = bt.And(  upRange, alert3_cond1, alert3_cond2, filtered  )
+        #print('alert 3:')
+        #print(alert3)
 
-        alert4_cond1 = bt.Or(  self.datas[0].close < self.datas[0].close.get(ago=self.p.ltLB), self.datas[0].close < self.datas[0].close.get(ago=self.p.mtLB)  )
-        self.alert4 = bt.And(  upRange_Aggr, self.datas[0].close > self.datas[0].close(ago=self.p.epastr), alert4_cond1, filtered_Aggr  )
+        alert4_cond1 = bt.Or(  self.data.close < self.data.close(self.p.ltLB), self.data.close(0) < self.data.close(self.p.mtLB)  )
+        # self.alert4 = bt.LineNum(float('nan'))
+        self.alert4 = bt.And(  upRange_Aggr, self.data.close(0) > self.data.close(self.p.epastr), alert4_cond1, filtered_Aggr  )
 
+        # self.isOverBought = bt.LineNum(float('nan'))
         self.isOverBought = bt.And(bt.indicators.CrossOver(k,d), k > self.p.StochOverBought)
 
         # filteredAlert = alert3
@@ -140,7 +143,7 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
 
     def next(self):
         # Simply log the closing price of the series from the reference
-        self.log('Close, %.2f' % self.dataclose[0])
+        self.log('Close, %.2f' % self.data.close[0])
         
         #if self.bar_executed[0] :
         #    print('original entry: ', self.bar_executed) 
@@ -148,14 +151,14 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         #print('order: ',self.order)
 
 
-        if self.alert3:
-             self.regularBuy = True
+        # if self.alert3 > 0:
+        #      self.regularBuy = True
 
-        if self.alert4:
-             self.aggressiveBuy = True
+        # if self.alert4 > 0:
+        #      self.aggressiveBuy = True
         
-        if self.isOverBought:
-             self.closePosition = True
+        # if self.isOverBought > 0:
+        #      self.closePosition = True
 
         if self.position: 
             print('position entry size: ',self.position.size)
@@ -171,18 +174,18 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         if not self.position:
             print('not in position')
             print('checking for Regular or Aggressive Buy Conditions..')
-            if self.regularBuy:
+            if self.alert3:
                 print('Regular Buy condition found! Placing buy order..')
                 self.buy()
                 # BUY, BUY, BUY!!! (with default parameters)
-                self.log('BUY CREATE, %.2f' % self.dataclose[0])
+                self.log('BUY CREATE, %.2f' % self.data.close[0])
                 self.order = None
                 print('+' * 50)
 
-            elif self.aggressiveBuy:
+            elif self.alert4:
                 self.buy()
                 # BUY, BUY, BUY!!! (with default parameters)
-                self.log('BUY CREATE, %.2f' % self.dataclose[0])
+                self.log('BUY CREATE, %.2f' % self.data.close[0])
                 self.order = None
                 print('+' * 50)
 
@@ -193,9 +196,9 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
             print('original entry bar: ', self.bar_executed) 
             print('Checking for Sell Conditions..')
             
-            if self.closePosition:
+            if self.isOverBought:
                 print('Sell condition found! Placing sell order..')
-                self.log('SELL CREATE, %.2f' % self.dataclose[0])
+                self.log('SELL CREATE, %.2f' % self.data.close[0])
                 # self.order = self.sell()
                 # close position may be more efficient than selling position ? .. 12-1-20
                 self.order = self.close()
