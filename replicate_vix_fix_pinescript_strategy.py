@@ -12,7 +12,7 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
     params = (
         # pyramid buy limit
         #pyramid_limit = 3,
-        ('pyramid_limit',2),
+        ('pyramid_limit',3),
         # stochastic slow inputs
         ('StochLength',14), # lookback length of Stochastic")
         ('StochOverBought',80), #Stochastic overbought condition")
@@ -79,6 +79,12 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         self.first_date = dt.isoformat()
         self.first_run = False
 
+    def saveLatestBuyDate(self, txt, dt=None):
+        # ''' Logging function for this strategy'''
+        print('Saving latest buy date..')
+        dt = dt or self.datas[0].datetime.date(0)
+        print('%s, %s' % (dt.isoformat(), txt))
+        self.latest_buy_date = dt.isoformat()
 
     def meetsDateRequirements(self, txt, dt=None):
         # ''' Logging function for this strategy'''
@@ -109,19 +115,18 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
         self.pyramid = 0
 
         # < Stochastic slow formulas
-        stochastic_data = bt.indicators.StochasticSlow(self.data, period=self.p.StochLength)
-        k = bt.indicators.SMA(stochastic_data, period=self.p.smoothK)
-        d = bt.indicators.SMA(k, period=self.p.smoothD)
+        stochastic_data = bt.indicators.StochasticSlow(self.data, period=self.p.StochLength, plot=False)
+        k = bt.indicators.SMA(stochastic_data, period=self.p.smoothK, plot=False)
+        d = bt.indicators.SMA(k, period=self.p.smoothD, plot=False)
         # > end stochastic slow formulas
         
         
         # < Williams Vix Fix Formula
-        # highest_close_pd_period = bt.indicators.Highest(self.datas[0].close, period=self.p.pd) ## re-written o nthe next line. this line no longer necessary - cj 12-12-20
-        wvf = (  ( bt.indicators.Highest(self.data.close(0), period=self.p.pd ) - self.data.low(0) )  / ( bt.indicators.Highest(self.data.close(0), period=self.p.pd) ) )  * 100
-        sDev = self.p.mult * bt.indicators.StandardDeviation(wvf, period=self.p.bbl)
-        midLine = bt.indicators.SMA(wvf, period=self.p.bbl)
+        wvf = (  ( bt.indicators.Highest(self.data.close(0), period=self.p.pd, plot=False ) - self.data.low(0) )  / ( bt.indicators.Highest(self.data.close(0), period=self.p.pd, plot=False) ) )  * 100
+        sDev = self.p.mult * bt.indicators.StandardDeviation(wvf, period=self.p.bbl, plot=False)
+        midLine = bt.indicators.SMA(wvf, period=self.p.bbl, plot=False)
         upperBand = midLine + sDev
-        rangeHigh  = ( bt.indicators.Highest(wvf, period=self.p.lb) ) * self.p.ph
+        rangeHigh  = ( bt.indicators.Highest(wvf, period=self.p.lb, plot=False) ) * self.p.ph
         # > End Williams Vix Fix Formula
 
 
@@ -233,6 +238,7 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
                 self.buy(size=entry_size)
                 # BUY, BUY, BUY!!! (with default parameters)
                 self.log('BUY CREATE, %.2f' % self.data.close[0])
+                self.saveLatestBuyDate('Close, %.2f' % self.data.close[0])
                 self.order = None
                 self.pyramid = self.pyramid + 1
                 # print('Pyramid number increased by one. Pyramid number now: ' + str(self.pyramid))
@@ -242,6 +248,7 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
                 self.buy()
                 # BUY, BUY, BUY!!! (with default parameters)
                 self.log('BUY CREATE, %.2f' % self.data.close[0])
+                self.saveLatestBuyDate('Close, %.2f' % self.data.close[0])
                 self.order = None
                 self.pyramid = self.pyramid + 1
                 # print('Pyramid number increased by one. Pyramid number now: ' + str(self.pyramid))
@@ -268,12 +275,13 @@ class vix_fix_stoch_rsi_strategy(bt.Strategy):
                 # print('-' * 50)
 
 
-    # def stop(self):
-    #     something = 'secret value'
-    #     return something
+    def stop(self):
+        something = 'final secret value'
+        return something
+
         # current_broker_value = self.broker.getvalue()
-        #self.broker.setcash(current_broker_value)
-    #     pnl = round(self.broker.getvalue() - self.startcash,2)
-    #     print('StochOverSold: {} | Final PnL: {} | Start Cash: {} | End Cash: {}'.format(
-    #         self.p.StochOverSold, pnl, self.startcash, self.broker.getvalue()))
+        # self.broker.setcash(current_broker_value)
+        # pnl = round(self.broker.getvalue() - self.startcash,2)
+        # print('StochOverSold: {} | Final PnL: {} | Start Cash: {} | End Cash: {}'.format(
+        # self.p.StochOverSold, pnl, self.startcash, self.broker.getvalue()))
 

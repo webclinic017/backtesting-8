@@ -2,3 +2,10 @@
 .env
 __pycache__
 *.insyncdl
+/_src/.env
+.kappa/cache
+.vscode/settings.json
+_src/bin/chardetect
+/_src/venv_backtrader
+/results
+/venv_backtrader_zappa

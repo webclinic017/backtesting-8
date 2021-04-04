@@ -1,0 +1,19 @@
+{
+    "dev": {
+        "app_function": "app.handler",
+        "aws_region": "us-east-1",
+        "profile_name": "default",
+        "project_name": "backtesting",
+        "runtime": "python3.8",
+        // "slim_handler": "True",
+        "log_level": "INFO",
+        "timeout_seconds": 900,
+        "s3_bucket": "zappa-haqc1mvof",
+        "events": [{
+            "function": "app.handler", // The function to execute
+            "expression": "cron(0 13 * * ? *)", // When to execute it (in cron or rate format) - this should translate to 9 am ET every day
+            // "expression": "rate(10 minutes)", // 10 min scheduled test
+            "expression": "cron(0 21 * * ? *)" // When to execute it (in cron or rate format) - this should translate to 5 pm ET every day
+        }]
+    }
+}

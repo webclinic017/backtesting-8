@@ -87,7 +87,6 @@ def printDrawdown(analyzer):
 
 def testSymbolAlpacaExists(symbol_to_lookup_on_alpaca):
     URL = 'https://api.alpaca.markets/v2/assets/'+symbol_to_lookup_on_alpaca
-    # URL = 'https://api.alpaca.markets/v2/assets/'+'PUI'
     HEADERS = {
         "APCA-API-KEY-ID": ALPACA_API_KEY,
         "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY
@@ -95,14 +94,6 @@ def testSymbolAlpacaExists(symbol_to_lookup_on_alpaca):
     # print('Headers: '+str(HEADERS))
     # print('url to check: '+URL)
     r = requests.get(timeout = 5, url = URL, headers={'APCA-API-KEY-ID': ALPACA_API_LIVE_KEY, 'APCA-API-SECRET-KEY': ALPACA_API_LIVE_SECRET_KEY })
-    # dont think I need to return the data in any way.. remove later
-    # data = r.json()
-    #print(data)
-    # print(r.status_code)
-    # if str(r.status_code) != '200':
-    #     success = False
-    # else:
-    #     success = True
     
     return str(r.status_code)
 
@@ -124,15 +115,16 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
     # test array
-    array = ['HTLF']
+    # array = ['HTLF']
     # with open('./US_equities_master_list.csv') as csv_file:
     # with open('./US_equities_master_list_pt_2.csv') as csv_file:
     # with open('./US_equities_master_list_pt_3.csv') as csv_file:
-    with open('./US_equities_master_list_pt_4.csv') as csv_file:
+    # with open('./US_equities_master_list_pt_4.csv') as csv_file:
+    with open('./US_equities_master_list_pt_5.csv') as csv_file:
         header_written = 0
         csv_reader = csv.reader(csv_file, delimiter=',')
-        # for symbol_to_check in csv_reader:
-        for symbol_to_check in array:
+        for symbol_to_check in csv_reader:
+        # for symbol_to_check in array:
             # reset these values at the top of each loop as i dont think theyre properly being reset
             first_date_recorded = ''
             first_date_recorded_meets_requirements = ''
@@ -157,8 +149,10 @@ if __name__ == '__main__':
                 # way to check one symbol
                 # dataname='PUI', 
                 # get 2nd row. i.e. [1]
-                # dataname=symbol_to_check[1],
-                dataname=symbol_to_check,
+                ## csv method
+                # test array method
+                dataname=symbol_to_check[1],
+                # dataname=symbol_to_check,
                 # 253 (business days in a year) * 15 (number of years of backtest data) = 3795 days (bars since each bar = 1 day) required
                 historical=True, 
                 fromdate=datetime(1995, 1, 1), #timeframe=bt.TimeFrame.Days
@@ -168,8 +162,10 @@ if __name__ == '__main__':
                 timeframe = bt.TimeFrame.Days
                 )
 
-                print('Processing data for symbol: '+symbol_to_check)
-                # print('Processing data for symbol: '+symbol_to_check[1])
+                # test array method
+                # print('Processing data for symbol: '+symbol_to_check)
+                # csv method
+                print('Processing csv data for symbol: '+symbol_to_check[1])
                 
 
 
@@ -222,16 +218,38 @@ if __name__ == '__main__':
                         # printDrawdown(strategy.analyzers.drawdown.get_analysis())
                         # basic trade stats update 02-01-21
                         # print(strategy.analyzers.BasicTradeStats2.get_analysis())
-                        print(strategy.analyzers.BasicTradeStats2.rets)
-                        print(dir(strategy.analyzers.BasicTradeStats2.rets))
+                        # print(strategy.analyzers.BasicTradeStats2.re)
+                        print('PROFIT FACTOR')
+                        print(strategy.analyzers.BasicTradeStats2.rets.all.stats.profitFactor) 
+                        # print(dir(strategy.analyzers.BasicTradeStats2))
                         print(strategy.analyzers.BasicTradeStats2.print())
-                        print('test here')
-                        # end basic trade stats update
+                        # stats from basictradestats2
+                        # kelly - Kelly % - the optimal percentage (in hindsight) to have risked on your system per trade -> to make the maximum amount of profit.
+                        kelly_percent = strategy.analyzers.BasicTradeStats2.rets.all.stats.kellyPercent
+                        # expectancy - Expectancy % - this is the expectancy from system. e.g. for every unit risked what % can you expect to make. e.g. 28.7% means for every $1 you risked, your return was 28.7 cents.
+                        expectancy_percent = strategy.analyzers.BasicTradeStats2.rets.all.stats.expectancyPercentEstimated
+                        # reward risk - from site: also called Risk Reward Ratio = average win / average loss
+                        reward_risk_ratio =  strategy.analyzers.BasicTradeStats2.rets.all.stats.rewardRiskRatio
+                        # trades per year
+                        trades_per_year = strategy.analyzers.BasicTradeStats2.rets.all.stats.tradesPerYear
+                        # profit factor
+                        profit_factor = strategy.analyzers.BasicTradeStats2.rets.all.stats.profitFactor
+                        # profit - profit average
+                        average_pnl = strategy.analyzers.BasicTradeStats2.rets.all.pnl.average
+                        print(strategy.analyzers.BasicTradeStats2.rets.all.stats.profitFactor)
+                        # trades per year
+
                         # cerebro.plot(style='candlestick')
-                        array_item_to_add = [ symbol_to_check[1], trade_print_analysis[0], trade_print_analysis[1], trade_print_analysis[2], trade_print_analysis[3], trade_print_analysis[4], trade_print_analysis[5], trade_print_analysis[6], trade_print_analysis[7], trade_print_analysis[8], trade_print_analysis[9], trade_print_sqn, trade_print_drawdown, trade_print_analysis[10], total_strategy_bars, first_date_recorded, first_date_recorded_meets_requirements  ]
+
+                        array_item_to_add = [ symbol_to_check[1], trade_print_analysis[0], trade_print_analysis[1], trade_print_analysis[2], trade_print_analysis[3], trade_print_analysis[4], trade_print_analysis[5], trade_print_analysis[6], trade_print_analysis[7], trade_print_analysis[8], trade_print_analysis[9], trade_print_sqn, trade_print_drawdown, trade_print_analysis[10], total_strategy_bars, first_date_recorded, first_date_recorded_meets_requirements, kelly_percent, expectancy_percent, reward_risk_ratio, trades_per_year, profit_factor, average_pnl  ]
                         final_results_list.append(array_item_to_add)
                         # final_results_list.append(trade_print_sqn)
                         # final_results_list.append(trade_print_drawdown)
+
+                # symbol_to_check[1], trade_print_analysis[0], trade_print_analysis[1], trade_print_analysis[2], trade_print_analysis[3],  trade_print_analysis[4], trade_print_analysis[5], trade_print_analysis[6], trade_print_analysis[7], trade_print_analysis[8], trade_print_analysis[9], trade_print_sqn, trade_print_drawdown, trade_print_analysis[10], total_strategy_bars, first_date_recorded, first_date_recorded_meets_requirements,   kelly_percent,   expectancy_percent,   reward_risk_ratio,   trades_per_year,    profit_factor,   average_pnl 
+                #'Symbol',           'Ending Value',          'Starting Value',        'Positions Still Open',  'Total Positions Closed', 'Total Won',             'Total Lost',            'Strike Rate',           'Win Streak',            'Lose Streak',           'Net Profit or Loss',    'SQN Score',     'Max Drawdown %',     'Pyramid Limit',          'Total Bars',       'First Date Recorded','First Date Recorded Meets Requirements'  'Kelly Percent', 'Expectancy Percent', 'Reward Risk Ratio', 'Trades Per Year', 'Profit Factor', 'Average pnl' 
+
+
 
                 #Sort Results List
                 # by_period = sorted(final_results_list, key=lambda x: x[0])
@@ -246,7 +264,9 @@ if __name__ == '__main__':
 
                 # name of csv file  
                 filename = date_time_formatted+"_"+"timestamp"+"_"+ts+"_backtrader_results.csv"
-                header_values = ['Symbol', 'Ending Value','Starting Value','Positions Still Open', 'Total Positions Closed','Total Won','Total Lost','Strike Rate','Win Streak','Lose Streak','Net Profit or Loss','SQN Score','Max Drawdown %','Pyramid Limit','Total Bars', 'First Date Recorded', 'First Date Recorded Meets Requirements']
+                header_values = ['Symbol', 'Ending Value','Starting Value','Positions Still Open', 'Total Positions Closed','Total Won','Total Lost','Strike Rate','Win Streak','Lose Streak','Net Profit or Loss','SQN Score','Max Drawdown %','Pyramid Limit','Total Bars', 'First Date Recorded', 'First Date Recorded Meets Requirements', 'Kelly Percent', 'Expectancy Percent', 'Reward Risk Ratio', 'Trades Per Year', 'Profit Factor', 'Average pnl' ]
+                
+
                 # writing to csv file  
                 with open('./results/strategies/vix_fix/'+filename, 'a') as csvfile:  
                     # creating a csv writer object  
